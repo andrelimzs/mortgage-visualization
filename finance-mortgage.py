@@ -190,41 +190,50 @@ inflation_rate = interest_yearly_to_monthly(0.02)
 
 print(f"Plotting combinations for ${total}k\n")
 
+# =========================== Calculate Monthly and Interest ===========================
 remaining = []
+interest = []
 interest_vs_tenure = []
 interest_vs_tenure_infl = []
 monthly_required = []
 for i, grant in enumerate([0, 50]):
     R = np.zeros((12*35, len(tenure_range)))
-    I_vs_T = []
-    I_vs_T_infl = []
+    I = np.zeros((12*35, len(tenure_range)))
+    IvT = []
+    IvT_infl = []
     m = []
     for j,tenure in enumerate(tenure_range):
         # Calculate P,I,T and M
         sol = calculate_payments(total, interest_year=0.02, tenure=tenure, grant=grant)
-        P, interest, tenure_mths, monthly = sol
+        P, Ik, tenure_mths, monthly = sol
         
         t = tenure_mths/12
         R[:len(P),j] = P
+        I[:len(Ik),j] = Ik
         
-        # Calculate interest amount relative to inflation
-        inflation = np.power((1 + inflation_rate), np.arange(len(interest)))
+        total_interest = np.max(np.cumsum(Ik))
         
-        total_interest = np.max(np.cumsum(interest))
-        total_interest_infl = np.max(np.cumsum(interest / inflation))
+        I_all_infl = []
+        for infl in np.arange(0,4,1):
+            # Calculate interest amount relative to inflation
+            inflation_rate = interest_yearly_to_monthly(infl/100)
+            inflation_vector = np.power((1 + inflation_rate), np.arange(len(Ik)))    
+            total_interest_infl = np.max(np.cumsum(Ik / inflation_vector))
+            I_all_infl.append( np.array([t, total_interest_infl]) )
         
         # Store data
-        I_vs_T.append( np.array([t, total_interest]) )
-        I_vs_T_infl.append( np.array([t, total_interest_infl]) )
+        IvT.append( np.array([t, total_interest]) )
+        IvT_infl.append( np.stack(I_all_infl, axis=-1) )
         m.append( np.array([t, monthly]) )
     
     # Aggregate data
     remaining.append( R )
-    interest_vs_tenure.append( np.stack(I_vs_T) )
-    interest_vs_tenure_infl.append( np.stack(I_vs_T_infl) )
+    interest.append( I )
+    interest_vs_tenure.append( np.stack(IvT) )
+    interest_vs_tenure_infl.append( np.stack(IvT_infl) )
     monthly_required.append( np.stack(m) )
 
-# Create percentile fill_between for remaining over time
+# =========================== Precentile Fill for Remaining over time ===========================
 cmap = ['tab:blue', 'tab:orange']
 remaining = np.nan_to_num(remaining)
 remaining_percentile = []
@@ -237,21 +246,32 @@ for i,R in enumerate(remaining):
         if q == 0:
             ax[i,0].plot(t[upper > 0], upper[upper > 0], 'k--')
 
-# Plot interest vs tenure period
-for i, (I_vs_T, I_vs_T_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
-    ax[0,1].plot(I_vs_T[:,0], I_vs_T[:,1], '-x', color=cmap[i])
-    ax[0,1].plot(I_vs_T[:,0], I_vs_T_infl[:,1], '--', color=cmap[i])
-    # ax[0,1].plot(I_vs_T[:,0], inflation * I_vs_T[:,1], '--', color=cmap[i])
+# =========================== Interest vs Tenure ===========================
+for i, (IvT, IvT_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
+    T = IvT[:,0]
+    # # Comparison with one inflation rate (2%)
+    # ax[0,1].plot(T, IvT[:,1], '-x', color=cmap[i])
+    # ax[0,1].plot(T, IvT_infl[:,1,2], '--', color=cmap[i])
+    
+    # Fill_between 0% and 4%
+    ax[0,1].plot(T, IvT[:,1], color=cmap[i])
+    ax[0,1].plot(T, IvT_infl[:,1,-1], '--', color=cmap[i])
+    ax[0,1].fill_between(T, IvT[:,1], IvT_infl[:,1,-1], color=cmap[i], alpha=0.4, edgecolor=cmap[i])
+    
+    # # Overlapping fills from 1% to 4%
+    # ax[0,1].plot(T, IvT[:,1], 'k--')
+    # for j in range(IvT_infl.shape[2]):
+    #     ax[0,1].fill_between(T, IvT[:,1], IvT_infl[:,1,j], color=cmap[i], alpha=0.3)
 
-ax[0,1].legend(['25% down', '25% down + 2% inflation', '40% down', '40% down + 2% inflation'])
+ax[0,1].legend(['25% down', '25% down + 1-4% inflation', '40% down', '40% down + 1-4% inflation'])
 
-# Plot monthly payment vs tenure period
+# =========================== Monthly vs Tenure ===========================
 for m in monthly_required:
     ax[1,1].plot(m[:,0], m[:,1], '-x')
 
 ax[1,1].legend(['25% down', '40% down'])
 
-# Label
+# =========================== Label Plots ===========================
 ax[0,0].set_ylabel("Remaining ($)")
 ax[1,0].set_ylabel("Remaining (w/ Grant) ($)")
 ax[0,1].set_ylabel("Total Interest ($)")
@@ -260,21 +280,22 @@ ax[1,1].set_ylabel("Monthly ($)")
 ax[1,0].set_xlabel("time (years)")
 ax[1,1].set_xlabel("tenure (years)")
 
-_ = [ a.grid() for a in ax.flatten()  ]
+_ = [ a.grid() for a in ax.flatten() ]
 
 # +
-_, ax = plt.subplots(3, gridspec_kw={'height_ratios': [1,1,2]}, figsize=(12,16), dpi=300)
+_, ax = plt.subplots(3, gridspec_kw={'height_ratios': [1,1,2.5]}, figsize=(9,16), dpi=100)
 # plt.figure(figsize=(8,8), dpi=None)
 cmap = ['tab:blue', 'tab:orange']
 
-
 # =========================== Interest vs Tenure ===========================
-for i, (I_vs_T, I_vs_T_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
-    ax[0].plot(I_vs_T[:,0], I_vs_T[:,1], '-x', color=cmap[i])
-    ax[0].plot(I_vs_T[:,0], I_vs_T_infl[:,1], '--', color=cmap[i])
-    # ax[0,1].plot(I_vs_T[:,0], inflation * I_vs_T[:,1], '--', color=cmap[i])
+for i, (IvT, IvT_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
+    # Fill_between 0% and 4%
+    ax[0].plot(T, IvT[:,1], color=cmap[i])
+    ax[0].plot(T, IvT_infl[:,1,-1], '--', color=cmap[i])
+    for j in range(IvT_infl.shape[2]):
+        ax[0].fill_between(T, IvT[:,1], IvT_infl[:,1,j], color=cmap[i], alpha=0.2, label='_nolegend_')
 
-ax[0].legend(['25% down', '25% down + 2% inflation', '40% down', '40% down + 2% inflation'])
+ax[0].legend(['25% down', '25% down + (1-4%) inflation', '40% down', '40% down + (1-4%) inflation'])
 
 ax[0].set_ylabel("Total Interest ($)")
 ax[0].set_xlabel("Tenure (years)")
@@ -290,18 +311,27 @@ ax[1].set_xlabel("Tenure (years)")
 
 # =========================== Monthly vs Total Interest ===========================
 for i,_ in enumerate(interest_vs_tenure):
-    I_vs_T = interest_vs_tenure[i]
-    I_vs_T_infl = interest_vs_tenure_infl[i]
+    IvT = interest_vs_tenure[i]
+    IvT_infl = interest_vs_tenure_infl[i]
     m = monthly_required[i] * 1000
     
-    # Momthly vs Total Interest
-    ax[2].plot(m[:,1], I_vs_T[:,1], color=cmap[i])
-    ax[2].plot(m[:,1], I_vs_T_infl[:,1], '--', color=cmap[i])
+    # # Momthly vs Total Interest
+    # ax[2].plot(m[:,1], IvT[:,1], color=cmap[i])
+    # ax[2].plot(m[:,1], IvT_infl[:,1], '--', color=cmap[i])
+    
+    # Fill between 0% and 4% inflation
+    ax[2].plot(m[:,1], IvT[:,1], color=cmap[i])
+    ax[2].plot(m[:,1], IvT_infl[:,1,-1], '--', color=cmap[i])
+    for j in range(IvT_infl.shape[2]):
+        ax[2].fill_between(m[:,1], IvT[:,1], IvT_infl[:,1,j], color=cmap[i], alpha=0.2, label='_nolegend_')
 
-ax[2].legend(['25% down', '25% down + 2% inflation', '40% down', '40% down + 2% inflation'])
+ax[2].legend(['25% down', '25% down + (1-4%) inflation', '40% down', '40% down + (1-4%) inflation'])
 
 ax[2].set_ylabel("Total Interest ($k)")
 ax[2].set_xlabel("Monthly Payment ($)")
+
+ax[2].set_xlim(left=800, right=2100)
+ax[2].set_ylim(top=75)
 
 _ = [ a.grid() for a in ax.flatten()  ]
 # -
