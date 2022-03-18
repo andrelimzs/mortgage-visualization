@@ -13,6 +13,10 @@
 #     name: conda-env-control-systems-py
 # ---
 
+# +
+# %load_ext autoreload
+# %autoreload 2
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -181,9 +185,6 @@ def percentile_between(x, q):
 
 
 # +
-_,ax = plt.subplots(2,2, figsize=(16,8), dpi=300, sharex=False)
-# plt.tight_layout()
-
 total          = 370
 tenure_range   = range(10,36,1)
 inflation_rate = interest_yearly_to_monthly(0.02)
@@ -234,51 +235,45 @@ for i, grant in enumerate([0, 50]):
     monthly_required.append( np.stack(m) )
 
 # =========================== Precentile Fill for Remaining over time ===========================
+_,axes = plt.subplots(2,2, figsize=(16,9), dpi=100, sharex=False)
+ax = axes.T.flatten()
+
 cmap = ['tab:blue', 'tab:orange']
 remaining = np.nan_to_num(remaining)
-remaining_percentile = []
 t = np.arange(12*35)/12
 for i,R in enumerate(remaining):
     for q in range(0,101,20):
         upper, lower = percentile_between(R, q)
-        ax[i,0].fill_between(t, upper, lower, color=cmap[i], alpha=0.2) #, edgecolor=None)
+        ax[i].fill_between(t, upper, lower, color=cmap[i], alpha=0.2) #, edgecolor=None)
         # ax[i,0].plot(t, upper, t, lower, color=cmap[i])
         if q == 0:
-            ax[i,0].plot(t[upper > 0], upper[upper > 0], 'k--')
+            ax[i].plot(t[upper > 0], upper[upper > 0], 'k--')
 
-# =========================== Interest vs Tenure ===========================
-for i, (IvT, IvT_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
-    T = IvT[:,0]
-    # # Comparison with one inflation rate (2%)
-    # ax[0,1].plot(T, IvT[:,1], '-x', color=cmap[i])
-    # ax[0,1].plot(T, IvT_infl[:,1,2], '--', color=cmap[i])
-    
-    # Fill_between 0% and 4%
-    ax[0,1].plot(T, IvT[:,1], color=cmap[i])
-    ax[0,1].plot(T, IvT_infl[:,1,-1], '--', color=cmap[i])
-    ax[0,1].fill_between(T, IvT[:,1], IvT_infl[:,1,-1], color=cmap[i], alpha=0.4, edgecolor=cmap[i])
-    
-    # # Overlapping fills from 1% to 4%
-    # ax[0,1].plot(T, IvT[:,1], 'k--')
-    # for j in range(IvT_infl.shape[2]):
-    #     ax[0,1].fill_between(T, IvT[:,1], IvT_infl[:,1,j], color=cmap[i], alpha=0.3)
+# =========================== Precentile Fill for Interest paid after N years ===========================
+tShort = t[:1 + 12*5]
+for i,I in enumerate(interest):
+    for q in range(0,101,20):
+        numMonths = np.arange( 1, len(I)+1, dtype=float )
+        X = np.cumsum( I * 1000, axis=0 ) / numMonths.reshape((-1,1))
+        upper, lower = percentile_between(X[:1 + 12*5], q)
+        ax[i+2].fill_between(tShort, upper, lower, color=cmap[i], alpha=0.2)
+        
+        if q == 0:
+            ax[i+2].plot(tShort[upper > 0], upper[upper > 0], 'k--')
 
-ax[0,1].legend(['25% down', '25% down + 1-4% inflation', '40% down', '40% down + 1-4% inflation'])
+# Link y-axes
+ax[0].sharey(ax[1])
+ax[2].sharey(ax[3])
 
-# =========================== Monthly vs Tenure ===========================
-for m in monthly_required:
-    ax[1,1].plot(m[:,0], m[:,1], '-x')
+# Label
+ax[0].set_ylabel("Remaining (25% down) ($)")
+ax[1].set_ylabel("Remaining (40% down) ($)")
 
-ax[1,1].legend(['25% down', '40% down'])
+ax[2].set_ylabel("Cost / month (25% down) ($)")
+ax[3].set_ylabel("Cost / month (40% down) ($)")
 
-# =========================== Label Plots ===========================
-ax[0,0].set_ylabel("Remaining ($)")
-ax[1,0].set_ylabel("Remaining (w/ Grant) ($)")
-ax[0,1].set_ylabel("Total Interest ($)")
-ax[1,1].set_ylabel("Monthly ($)")
-
-ax[1,0].set_xlabel("time (years)")
-ax[1,1].set_xlabel("tenure (years)")
+ax[1].set_xlabel("time (years)")
+ax[2].set_xlabel("time (years)")
 
 _ = [ a.grid() for a in ax.flatten() ]
 
@@ -330,8 +325,8 @@ ax[2].legend(['25% down', '25% down + (1-4%) inflation', '40% down', '40% down +
 ax[2].set_ylabel("Total Interest ($k)")
 ax[2].set_xlabel("Monthly Payment ($)")
 
-ax[2].set_xlim(left=800, right=2100)
-ax[2].set_ylim(top=75)
+# ax[2].set_xlim(left=700, right=2500)
+# ax[2].set_ylim(top=80)
 
 _ = [ a.grid() for a in ax.flatten()  ]
 # -
