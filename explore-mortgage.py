@@ -159,6 +159,7 @@ def percentile_between(x, q):
 
 # + tags=[]
 price_range    = [800, 600, 400]
+tenure_range   = range(10,36,1)
 tNominal = tenure_range.index(25)
 inflation_rate = interest_yearly_to_monthly(0.02)
 
@@ -220,12 +221,12 @@ ax = axes.T.flatten()
 remaining = np.nan_to_num(remaining)
 t = np.arange(12*35)/12
 for i,R in enumerate(remaining):
-    for q in range(0,101,25):
-        upper, lower = percentile_between(R, q)
-        ax[0].fill_between(t, upper, lower, color=cmap[i], alpha=0.2) #, edgecolor=None)
-        # ax[i,0].plot(t, upper, t, lower, color=cmap[i])
-        if q == 0:
-            ax[0].plot(t[upper > 0], upper[upper > 0], 'k--')
+    Rnominal = R[:,tNominal]
+    ax[0].plot(t[Rnominal > 0], Rnominal[Rnominal > 0], 'k--')
+    
+    for T in [10,15,20,25,30,35]:
+        j = tenure_range.index(T)
+        ax[0].fill_between(t, R[:,j], Rnominal, color=cmap[i], alpha=0.2)
 
 ax[0].set_ylabel("Remaining ($)")
 ax[0].set_xlabel("time (years)")
