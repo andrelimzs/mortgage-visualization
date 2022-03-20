@@ -84,7 +84,7 @@ def required_monthly_payment(P, T, I):
     m = (1 + I)**T * P / A
     return m
     
-def calculate_payments(price, tenure, interest_year=0.02, downpayment_percent=0.25, grant=0):
+def calculate_payments(price, tenure, interest_year=0.02, downpayment_percent=0.25):
     """
     Calculate remainining loan and interest for a given interest, tenure period,
     downpayment percentage and optional grant
@@ -108,7 +108,7 @@ def calculate_payments(price, tenure, interest_year=0.02, downpayment_percent=0.
     """
     tenure_mths = 12 * tenure
     downpayment = price * downpayment_percent
-    P = price - downpayment - grant
+    P = price - downpayment
     interest_month = interest_yearly_to_monthly(interest_year)
     
     # Calculated required monthly payment to achieve tenure
@@ -117,7 +117,7 @@ def calculate_payments(price, tenure, interest_year=0.02, downpayment_percent=0.
     t = np.arange(0, tenure_mths)
     remaining = np.zeros(tenure_mths)
     interest  = np.zeros(tenure_mths)
-    remaining[0] = price - downpayment - grant
+    remaining[0] = price - downpayment
 
     for i in t[1:]:
         remaining[i] = remaining[i-1] - monthly
@@ -132,7 +132,7 @@ def calculate_payments(price, tenure, interest_year=0.02, downpayment_percent=0.
     return remaining, interest, tenure_mths, monthly
 
 
-# + tags=[]
+# + jupyter={"source_hidden": true} tags=[]
 def percentile_between(x, q):
     """
     Return the q percentile of x about nominal value x0
@@ -162,10 +162,13 @@ price_range    = [800, 600, 400]
 tenure_range   = range(10,36,1)
 tenure_nominal = tenure_range.index(25)
 inflation_rate = interest_yearly_to_monthly(0.02)
+loan_interest  = 0.015
+monthly_threshold = 3
 
 cmap = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
 # labels = [25, 37.5, 50]
 labels = price_range
+plt.rcParams['savefig.dpi'] = 300
 
 for i,_ in enumerate(price_range):
     print(f"Price: ${price_range[i]}k, Downpayment: ${0.25 * price_range[i]}k")
@@ -185,8 +188,14 @@ for i, price in enumerate(price_range):
     m = []
     for j,tenure in enumerate(tenure_range):
         # Calculate P,I,T and M
-        sol = calculate_payments(price, interest_year=0.02, tenure=tenure, grant=0)
+        sol = calculate_payments(price, interest_year=loan_interest, tenure=tenure)
         P, Ik, tenure_mths, monthly = sol
+        
+        # Stop calculating when the monthly payment exceeds threshold
+        if monthly > monthly_threshold:
+            R[:,j] = np.nan
+            I[:,j] = np.nan
+            continue
         
         t = tenure_mths/12
         R[:len(P),j] = P
@@ -215,17 +224,24 @@ for i, price in enumerate(price_range):
     monthly_required.append( np.stack(m) )
 
 # =========================== Precentile Fill for Remaining over time ===========================
-_,axes = plt.subplots(2,2, figsize=(16,9), dpi=100, sharex=False)
+_,axes = plt.subplots(2,2, figsize=(16,9), dpi=200, sharex=False)
 ax = axes.T.flatten()
 
 remaining = np.nan_to_num(remaining)
 t = np.arange(12*35)/12
 for i,R in enumerate(remaining):
     R_nominal = R[:,tenure_nominal]
+    
+    # Filter R_nominal > 0 so that the line stops when it hits the x-axis
     ax[0].plot(t[R_nominal > 0], R_nominal[R_nominal > 0], 'k--')
     
     for T in [10,15,20,25,30,35]:
         j = tenure_range.index(T)
+        
+        # If this tenure results in a monthly > threshold, skip it
+        if np.sum(R[:,j]) == 0:
+            continue
+        
         ax[0].fill_between(t, R[:,j], R_nominal,
                            color=cmap[i], alpha=0.2, edgecolor='k')
 
@@ -281,10 +297,11 @@ ax[3].legend(handles=patch, loc="upper left")
 _ = [ a.grid() for a in ax.flatten() ]
 
 plt.tight_layout()
-plt.savefig('./docs/plots/overview1.jpg', dpi=200)
+plt.savefig('./docs/plots/overview1.jpg')
 
 # + tags=[]
-_, ax = plt.subplots(2, gridspec_kw={'height_ratios': [1,2]}, figsize=(9,12), dpi=100)
+_, axes = plt.subplots(1,2, figsize=(16,8), dpi=200)
+ax = axes.flatten()
 
 # =========================== Interest vs Tenure ===========================
 for i, (IvT, IvT_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
@@ -334,6 +351,6 @@ ax[1].set_xlabel("Monthly Payment ($ k)")
 _ = [ a.grid() for a in ax.flatten()  ]
 
 plt.tight_layout()
-plt.savefig('./docs/plots/overview2.jpg', dpi=200)
+plt.savefig('./docs/plots/overview2.jpg')
 # -
 
