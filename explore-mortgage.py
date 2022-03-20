@@ -165,6 +165,7 @@ loan_interest  = 0.015
 monthly_threshold = 3.6
 
 cmap = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
+# cmap = ['tab:green', 'tab:orange', 'tab:blue']
 labels = price_range
 plt.rcParams['savefig.dpi'] = 300
 plt.rcParams['font.size']   = 14
@@ -187,14 +188,15 @@ for i, price in enumerate(price_range):
         # Calculate P,I,T and M
         sol = calculate_payments(price, interest_year=loan_interest, tenure=tenure)
         P, Ik, tenure_mths, monthly = sol
+        t = tenure_mths/12
         
         # Stop calculating when the monthly payment exceeds threshold
         if monthly > monthly_threshold:
             R[:,j] = np.nan
             I[:,j] = np.nan
+            m.append( np.array([t, np.nan]) )
             continue
         
-        t = tenure_mths/12
         R[:len(P),j] = P
         I[:len(Ik),j] = Ik
         
@@ -258,8 +260,8 @@ tIndex = range(1 + 12*tYears)
 tShort = t[tIndex]
 for i,I in enumerate(interest):
     numMonths = np.arange( 1, len(I)+1, dtype=float )
-    I_nominal = np.cumsum( 1000*I[:, tenure_nominal] )
-    I_amortized_nominal = I_nominal / numMonths
+    I_nominal = np.cumsum( I[:, tenure_nominal] )
+    I_amortized_nominal = I_nominal / numMonths * 1000
     
     # Plot nominal lines
     ax[3].plot(tShort, I_nominal[tIndex], 'k--')
@@ -270,10 +272,10 @@ for i,I in enumerate(interest):
         j = tenure_range.index(T)
         
         # Total interest (excluding payment toward the house itself)
-        I_total = np.cumsum( I[:,j] * 1000, axis=0 )
+        I_total = np.cumsum( I[:,j], axis=0 )
         
         # Amortized interest over duration (months) owned
-        I_amortized = I_total / numMonths
+        I_amortized = I_total / numMonths * 1000
         
         ax[2].fill_between(tShort, I_amortized[tIndex], I_amortized_nominal[tIndex],
                            color=cmap[i], alpha=0.3, edgecolor='k')
@@ -301,6 +303,45 @@ plt.savefig('./docs/plots/overview1.jpg')
 _, axes = plt.subplots(1,2, figsize=(16,8), dpi=200)
 ax = axes.flatten()
 
+# =================== Interest vs Tenure (For variable duration) ===================
+total_accrued_interest = []
+for i, I in enumerate(interest):
+    total_accrued_interest.append( np.cumsum(I, axis=0) )
+
+min_tenure = 2
+max_tenure = 14
+t = np.array(tenure_range)
+for i, accrued in enumerate(total_accrued_interest):
+    ax[0].plot(t, accrued[12*min_tenure,:] / min_tenure, 'k--')
+    for k, years in enumerate(range(min_tenure, max_tenure+1, 2)):
+        j = 12 * years
+        ax[0].fill_between(t, accrued[j,:] / years,
+                           accrued[12*min_tenure,:] / min_tenure,
+                           color=cmap[i], alpha=0.2, edgecolor='k',
+                           label='_nolegend_')
+    
+ax[0].set_ylabel('Accrued Interest / year ($)')
+ax[0].set_xlabel('Tenure (years)')
+
+# # =========================== Repayment vs Accrued Interest ===========================
+for i, accrued in enumerate(total_accrued_interest):
+    m = monthly_required[i]
+    ax[1].plot(m[:,1], accrued[12*min_tenure,:], 'k--')
+    for k, years in enumerate(range(min_tenure, max_tenure+1, 2)):
+        j = 12 * years
+        ax[1].plot(m[:,1], accrued[j,:], color=cmap[i], alpha=0.3)
+        ax[1].fill_between(m[:,1], accrued[j,:],
+                           accrued[12*min_tenure,:],
+                           color=cmap[i], alpha=0.2, edgecolor='k',
+                           label='_nolegend_')
+    
+ax[1].set_ylabel('Accrued Interest ($)')
+ax[1].set_xlabel('Repayment ($)')
+
+_ = [ a.grid() for a in ax.flatten()  ]
+plt.tight_layout()
+plt.savefig('./docs/plots/overview2.jpg')
+# + tags=[] jupyter={"source_hidden": true}
 # # =================== Interest vs Tenure (Assume full duration) ===================
 # for i, (IvT, IvT_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
 #     # Fill_between 0% and 4%
@@ -321,50 +362,21 @@ ax = axes.flatten()
 # ax[0].set_ylabel('accrued Interest ($)')
 # ax[0].set_xlabel('Tenure (years)')
 
-# =================== Interest vs Tenure (For variable duration) ===================
-total_accrued_interest = []
-for i, I in enumerate(interest):
-    total_accrued_interest.append( np.cumsum(I, axis=0) )
-
-years_nominal = 2
-max_tenure = 6
-t = np.array(tenure_range)
-for i, accrued in enumerate(total_accrued_interest):
-    # if i != 2: continue
+# # =========================== Monthly vs Total Interest ===========================
+# for i,_ in enumerate(interest_vs_tenure):
+#     IvT = interest_vs_tenure[i]
+#     IvT_infl = interest_vs_tenure_infl[i]
+#     m = monthly_required[i] * 1000
     
-    ax[0].plot(t, accrued[12*years_nominal,:] / years_nominal, 'k--')
-    for k, years in enumerate(range(2, max_tenure+1)):
-        j = 12 * years
-        ax[0].fill_between(t, accrued[j,:] / years,
-                           accrued[12*years_nominal,:] / years_nominal,
-                           color=cmap[i], alpha=0.2, edgecolor='k',
-                           label='_nolegend_')
+#     # Fill between 0% and 4% inflation
+#     ax[1].plot(m[:,1], IvT[:,1], 'k--',
+#                label=f'${labels[i]}k')
     
-ax[3].legend(handles=patch, loc='upper left')
-ax[0].set_ylabel('Accrued Interest / year ($)')
-ax[0].set_xlabel('Tenure (years)')
+#     for j in range(IvT_infl.shape[2]):
+#         ax[1].fill_between(m[:,1], IvT[:,1], IvT_infl[:,1,j],
+#                            color=cmap[i], alpha=0.2, edgecolor='k',
+#                            label='_nolegend_')
 
-# =========================== Monthly vs Total Interest ===========================
-for i,_ in enumerate(interest_vs_tenure):
-    IvT = interest_vs_tenure[i]
-    IvT_infl = interest_vs_tenure_infl[i]
-    m = monthly_required[i] * 1000
-    
-    # Fill between 0% and 4% inflation
-    ax[1].plot(m[:,1], IvT[:,1], 'k--',
-               label=f'${labels[i]}k')
-    
-    for j in range(IvT_infl.shape[2]):
-        ax[1].fill_between(m[:,1], IvT[:,1], IvT_infl[:,1,j],
-                           color=cmap[i], alpha=0.2, edgecolor='k',
-                           label='_nolegend_')
-
-ax[1].legend()
-ax[1].set_ylabel('Accrued Interest ($ k)')
-ax[1].set_xlabel('Repayment ($)')
-
-_ = [ a.grid() for a in ax.flatten()  ]
-plt.tight_layout()
-plt.savefig('./docs/plots/overview2.jpg')
-# -
-
+# ax[1].legend(handles=patch, loc='upper right')
+# ax[1].set_ylabel('Accrued Interest ($ k)')
+# ax[1].set_xlabel('Repayment ($)')
