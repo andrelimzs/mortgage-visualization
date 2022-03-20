@@ -159,7 +159,8 @@ def percentile_between(x, q):
 
 # + tags=[]
 price_range    = [800, 600, 400]
-tNominal = tenure_range.index(25)
+tenure_range   = range(10,36,1)
+tenure_nominal = tenure_range.index(25)
 inflation_rate = interest_yearly_to_monthly(0.02)
 
 cmap = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
@@ -220,12 +221,13 @@ ax = axes.T.flatten()
 remaining = np.nan_to_num(remaining)
 t = np.arange(12*35)/12
 for i,R in enumerate(remaining):
-    for q in range(0,101,25):
-        upper, lower = percentile_between(R, q)
-        ax[0].fill_between(t, upper, lower, color=cmap[i], alpha=0.2) #, edgecolor=None)
-        # ax[i,0].plot(t, upper, t, lower, color=cmap[i])
-        if q == 0:
-            ax[0].plot(t[upper > 0], upper[upper > 0], 'k--')
+    R_nominal = R[:,tenure_nominal]
+    ax[0].plot(t[R_nominal > 0], R_nominal[R_nominal > 0], 'k--')
+    
+    for T in [10,15,20,25,30,35]:
+        j = tenure_range.index(T)
+        ax[0].fill_between(t, R[:,j], R_nominal,
+                           color=cmap[i], alpha=0.2, edgecolor='k')
 
 ax[0].set_ylabel("Remaining ($)")
 ax[0].set_xlabel("time (years)")
@@ -242,26 +244,33 @@ tYears = 10
 tIndex = range(1 + 12*tYears)
 tShort = t[tIndex]
 for i,I in enumerate(interest):
-    for q in range(0,101,25):
-        numMonths = np.arange( 1, len(I)+1, dtype=float )
+    numMonths = np.arange( 1, len(I)+1, dtype=float )
+    I_nominal = np.cumsum( 1000*I[:, tenure_nominal] )
+    I_amortized_nominal = I_nominal / numMonths
+    
+    # Plot nominal lines
+    ax[3].plot(tShort, I_nominal[tIndex], 'k--')
+    ax[2].plot(tShort, I_nominal[tIndex] / numMonths[tIndex], 'k--')
+    
+    # Plot interest for different tenure periods
+    for T in [10,15,20,25,30,35]:
+        j = tenure_range.index(T)
+        # Total interest (excluding payment toward the house itself)
+        I_total = np.cumsum( I[:,j] * 1000, axis=0 )
+        # Amortized interest over duration (months) owned
+        I_amortized = I_total / numMonths
         
-        X = np.cumsum( I * 1000, axis=0 )
-        upper, lower = percentile_between(X[tIndex], q)
-        ax[3].fill_between(tShort, upper, lower, color=cmap[i], alpha=0.2)
-        if q == 0: ax[3].plot(tShort[upper > 0], upper[upper > 0], 'k--')
+        ax[2].fill_between(tShort, I_amortized[tIndex], I_amortized_nominal[tIndex],
+                           color=cmap[i], alpha=0.3, edgecolor='k')
+        ax[3].fill_between(tShort, I_total[tIndex], I_nominal[tIndex],
+                           color=cmap[i], alpha=0.3, edgecolor='k')
         
-        X /= numMonths.reshape((-1,1))
-        upper, lower = percentile_between(X[tIndex], q)
-        ax[2].fill_between(tShort, upper, lower, color=cmap[i], alpha=0.2)
-        if q == 0: ax[2].plot(tShort[upper > 0], upper[upper > 0], 'k--')
 ax[2].set_ylabel("Interest / month ($)")
 ax[3].set_ylabel("Total Interest ($)")
-
 ax[2].set_xlabel("time (years)")
-
 ax[2].set_ylim(100)
 
-# Legend
+# =========================== Legend ===========================
 patch = []
 for i in range(len(remaining)):
     patch.append( mpatches.Patch(color=cmap[i], alpha=0.6, label=f'${labels[i]}k') )
