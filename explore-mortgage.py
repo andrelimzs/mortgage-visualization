@@ -163,10 +163,9 @@ tenure_range   = range(10,36,1)
 tenure_nominal = tenure_range.index(25)
 inflation_rate = interest_yearly_to_monthly(0.02)
 loan_interest  = 0.015
-monthly_threshold = 3
+monthly_threshold = 3.6
 
 cmap = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
-# labels = [25, 37.5, 50]
 labels = price_range
 plt.rcParams['savefig.dpi'] = 300
 
@@ -204,7 +203,7 @@ for i, price in enumerate(price_range):
         total_interest = np.max(np.cumsum(Ik))
         
         I_all_infl = []
-        for infl in np.arange(0,4,1):
+        for infl in np.arange(0,5,1):
             # Calculate interest amount relative to inflation
             inflation_rate = interest_yearly_to_monthly(infl/100)
             inflation_vector = np.power((1 + inflation_rate), np.arange(len(Ik)))    
@@ -309,7 +308,7 @@ for i, (IvT, IvT_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_i
     ax[0].plot(IvT[:,0], IvT[:,1],
                color=cmap[i], label=f"${labels[i]}k")
     ax[0].plot(IvT[:,0], IvT_infl[:,1,-1], '--',
-               color=cmap[i], label='_nolegend')
+               color=cmap[i], label=f"${labels[i]}k + (1-4%) inflation")
     for j in range(IvT_infl.shape[2]):
         ax[0].fill_between(IvT[:,0], IvT[:,1], IvT_infl[:,1,j], color=cmap[i], alpha=0.2, label='_nolegend_')
 
@@ -318,15 +317,6 @@ ax[0].legend()
 
 ax[0].set_ylabel("Total Interest ($)")
 ax[0].set_xlabel("Tenure (years)")
-
-# # =========================== Monthly vs Tenure ===========================
-# for m in monthly_required:
-#     ax[1].plot(m[:,0], m[:,1] * 1000, '-x')
-
-# ax[1].legend(['25% down', '40% down'])
-
-# ax[1].set_ylabel("Monthly ($)")
-# ax[1].set_xlabel("Tenure (years)")
 
 # =========================== Monthly vs Total Interest ===========================
 for i,_ in enumerate(interest_vs_tenure):
