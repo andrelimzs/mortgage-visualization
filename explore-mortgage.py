@@ -167,7 +167,7 @@ monthly_threshold = 3.6
 cmap = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
 labels = price_range
 plt.rcParams['savefig.dpi'] = 300
-plt.rcParams['font.size']   = 16
+plt.rcParams['font.size']   = 14
 
 print(f'Tenure between {tenure_range[0]} to {tenure_range[-1]}')
 for i,_ in enumerate(price_range):
@@ -332,8 +332,10 @@ for i,_ in enumerate(interest_vs_tenure):
                color=cmap[i], label=f'${labels[i]}k')
     ax[1].plot(m[:,1], IvT_infl[:,1,-1], '--',
                color=cmap[i], label='_nolegend_')
+    
     for j in range(IvT_infl.shape[2]):
-        ax[1].fill_between(m[:,1], IvT[:,1], IvT_infl[:,1,j], color=cmap[i], alpha=0.2, label='_nolegend_')
+        ax[1].fill_between(m[:,1], IvT[:,1], IvT_infl[:,1,j],
+                           color=cmap[i], alpha=0.2, label='_nolegend_')
 
 ax[1].legend()
 ax[1].set_ylabel('Total Interest ($ k)')
