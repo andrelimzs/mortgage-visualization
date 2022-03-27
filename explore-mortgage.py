@@ -323,7 +323,7 @@ for i, accrued in enumerate(total_accrued_interest):
 ax[0].set_ylabel('Accrued Interest / year ($)')
 ax[0].set_xlabel('Tenure (years)')
 
-# # =========================== Repayment vs Accrued Interest ===========================
+# =========================== Repayment vs Accrued Interest ===========================
 for i, accrued in enumerate(total_accrued_interest):
     m = monthly_required[i]
     ax[1].plot(m[:,1], accrued[12*min_tenure,:], 'k--')
@@ -334,14 +334,14 @@ for i, accrued in enumerate(total_accrued_interest):
                            accrued[12*min_tenure,:],
                            color=cmap[i], alpha=0.2, edgecolor='k',
                            label='_nolegend_')
-    
+
 ax[1].set_ylabel('Accrued Interest ($)')
 ax[1].set_xlabel('Repayment ($)')
 
 _ = [ a.grid() for a in ax.flatten()  ]
 plt.tight_layout()
 plt.savefig('./docs/plots/overview2.jpg')
-# + tags=[] jupyter={"source_hidden": true}
+# + jupyter={"source_hidden": true} tags=[]
 # # =================== Interest vs Tenure (Assume full duration) ===================
 # for i, (IvT, IvT_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
 #     # Fill_between 0% and 4%
@@ -362,21 +362,18 @@ plt.savefig('./docs/plots/overview2.jpg')
 # ax[0].set_ylabel('accrued Interest ($)')
 # ax[0].set_xlabel('Tenure (years)')
 
-# # =========================== Monthly vs Total Interest ===========================
-# for i,_ in enumerate(interest_vs_tenure):
-#     IvT = interest_vs_tenure[i]
-#     IvT_infl = interest_vs_tenure_infl[i]
-#     m = monthly_required[i] * 1000
-    
-#     # Fill between 0% and 4% inflation
-#     ax[1].plot(m[:,1], IvT[:,1], 'k--',
-#                label=f'${labels[i]}k')
-    
-#     for j in range(IvT_infl.shape[2]):
-#         ax[1].fill_between(m[:,1], IvT[:,1], IvT_infl[:,1,j],
+# # =========================== Repayment vs Accrued Interest ===========================
+# for i, accrued in enumerate(total_accrued_interest):
+#     m = monthly_required[i]
+#     ax[1].plot(m[:,1], accrued[12*min_tenure,:], 'k--')
+#     for k, years in enumerate(range(min_tenure, max_tenure+1, 2)):
+#         j = 12 * years
+#         ax[1].plot(m[:,1], accrued[j,:], color=cmap[i], alpha=0.3)
+#         ax[1].fill_between(m[:,1], accrued[j,:],
+#                            accrued[12*min_tenure,:],
 #                            color=cmap[i], alpha=0.2, edgecolor='k',
 #                            label='_nolegend_')
 
-# ax[1].legend(handles=patch, loc='upper right')
-# ax[1].set_ylabel('Accrued Interest ($ k)')
+# ax[1].invert_xaxis()
+# ax[1].set_ylabel('Accrued Interest ($)')
 # ax[1].set_xlabel('Repayment ($)')
