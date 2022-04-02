@@ -161,18 +161,18 @@ price_range    = [800, 600, 400]
 tenure_range   = range(10,36,1)
 tenure_nominal = tenure_range.index(25)
 inflation_rate = interest_yearly_to_monthly(0.02)
-loan_interest  = 0.015
+loan_range     = [1.0, 1.5, 2.0, 2.5, 3.0]
 monthly_threshold = 3.6
 
 cmap = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple']
 # cmap = ['tab:green', 'tab:orange', 'tab:blue']
-labels = price_range
+labels = loan_range
 plt.rcParams['savefig.dpi'] = 300
 plt.rcParams['font.size']   = 14
 
 print(f'Tenure between {tenure_range[0]} to {tenure_range[-1]}')
-for i,_ in enumerate(price_range):
-    print(f'Price: ${price_range[i]}k, Downpayment: ${0.25 * price_range[i]}k')
+# for i,_ in enumerate(price_range):
+#     print(f'Price: ${price_range[i]}k, Downpayment: ${0.25 * price_range[i]}k')
 
 # =========================== Calculate Monthly and Interest ===========================
 remaining = []
@@ -180,7 +180,10 @@ interest = []
 interest_vs_tenure = []
 interest_vs_tenure_infl = []
 monthly_required = []
-for i, price in enumerate(price_range):
+# for i, price in enumerate([600]):
+for i, loan_interest in enumerate(loan_range):
+    loan_interest /= 100
+    price = 600
     R = np.zeros((12*35, len(tenure_range)))
     I = np.zeros((12*35, len(tenure_range)))
     IvT, IvT_infl, m = [], [], []
@@ -255,7 +258,7 @@ ax[1].set_ylabel('Repayment ($)')
 ax[1].set_xlabel('Tenure (years)')
 
 # =========================== Precentile Fill for Interest paid after N years ===========================
-tYears = 10
+tYears = 5
 tIndex = range(1 + 12*tYears)
 tShort = t[tIndex]
 for i,I in enumerate(interest):
@@ -291,7 +294,7 @@ ax[2].set_ylim(0)
 # =========================== Legend ===========================
 patch = []
 for i in range(len(remaining)):
-    patch.append( mpatches.Patch(color=cmap[i], alpha=0.6, label=f'${labels[i]}k') )
+    patch.append( mpatches.Patch(color=cmap[i], alpha=0.6, label=f'{labels[i]}%') )
 ax[0].legend(handles=patch, loc='upper right')
 ax[3].legend(handles=patch, loc='upper left')
 
@@ -341,7 +344,7 @@ ax[1].set_xlabel('Repayment ($)')
 _ = [ a.grid() for a in ax.flatten()  ]
 plt.tight_layout()
 plt.savefig('./docs/plots/overview2.jpg')
-# + jupyter={"source_hidden": true} tags=[]
+# + tags=[]
 # # =================== Interest vs Tenure (Assume full duration) ===================
 # for i, (IvT, IvT_infl) in enumerate(zip(interest_vs_tenure, interest_vs_tenure_infl)):
 #     # Fill_between 0% and 4%
